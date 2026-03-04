@@ -33,6 +33,9 @@ import org.gradle.api.attributes.LibraryElements;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.FileSystemLocation;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.Classpath;
+import org.gradle.api.tasks.CompileClasspath;
+import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.process.CommandLineArgumentProvider;
 
@@ -220,15 +223,53 @@ public class ModularPathsExtension implements Cloneable, Iterable<Configuration>
 
   public CommandLineArgumentProvider getCompilationArguments() {
     return new CompilationArgumentsProvider(
-        getCompilationModulePath(), hasModuleDescriptor, modulePatches);
+        getCompilationModulePath(),
+        hasModuleDescriptor,
+        modulePatches.stream().map(Map.Entry::getKey).toList(),
+        project.files(modulePatches.stream().map(Map.Entry::getValue).toArray()),
+        modulePatches);
   }
 
   /** Keep this class static to avoid references to the outer class. */
-  public record CompilationArgumentsProvider(
-      FileCollection modulePath,
-      boolean hasModuleDescriptor,
-      List<Map.Entry<String, Provider<? extends FileSystemLocation>>> modulePatches)
-      implements CommandLineArgumentProvider {
+  public static final class CompilationArgumentsProvider implements CommandLineArgumentProvider {
+    private final FileCollection modulePath;
+    private final boolean hasModuleDescriptor;
+    private final List<String> patchModuleNames;
+    private final FileCollection patchModulePath;
+    private final List<Map.Entry<String, Provider<? extends FileSystemLocation>>> modulePatches;
+
+    public CompilationArgumentsProvider(
+        FileCollection modulePath,
+        boolean hasModuleDescriptor,
+        List<String> patchModuleNames,
+        FileCollection patchModulePath,
+        List<Map.Entry<String, Provider<? extends FileSystemLocation>>> modulePatches) {
+      this.modulePath = modulePath;
+      this.hasModuleDescriptor = hasModuleDescriptor;
+      this.patchModuleNames = List.copyOf(patchModuleNames);
+      this.patchModulePath = patchModulePath;
+      this.modulePatches = List.copyOf(modulePatches);
+    }
+
+    @CompileClasspath
+    public FileCollection getModulePath() {
+      return modulePath;
+    }
+
+    @Input
+    public boolean isHasModuleDescriptor() {
+      return hasModuleDescriptor;
+    }
+
+    @Input
+    public List<String> getPatchModuleNames() {
+      return patchModuleNames;
+    }
+
+    @CompileClasspath
+    public FileCollection getPatchModulePath() {
+      return patchModulePath;
+    }
 
     @Override
     public Iterable<String> asArguments() {
@@ -287,15 +328,54 @@ public class ModularPathsExtension implements Cloneable, Iterable<Configuration>
   }
 
   public CommandLineArgumentProvider getRuntimeArguments() {
-    return new RuntimeArgumentsProvider(getRuntimeModulePath(), hasModuleDescriptor, modulePatches);
+    return new RuntimeArgumentsProvider(
+        getRuntimeModulePath(),
+        hasModuleDescriptor,
+        modulePatches.stream().map(Map.Entry::getKey).toList(),
+        project.files(modulePatches.stream().map(Map.Entry::getValue).toArray()),
+        modulePatches);
   }
 
   /** Keep this class static to avoid references to the outer class. */
-  public record RuntimeArgumentsProvider(
-      FileCollection modulePath,
-      boolean hasModuleDescriptor,
-      List<Map.Entry<String, Provider<? extends FileSystemLocation>>> modulePatches)
-      implements CommandLineArgumentProvider {
+  public static final class RuntimeArgumentsProvider implements CommandLineArgumentProvider {
+    private final FileCollection modulePath;
+    private final boolean hasModuleDescriptor;
+    private final List<String> patchModuleNames;
+    private final FileCollection patchModulePath;
+    private final List<Map.Entry<String, Provider<? extends FileSystemLocation>>> modulePatches;
+
+    public RuntimeArgumentsProvider(
+        FileCollection modulePath,
+        boolean hasModuleDescriptor,
+        List<String> patchModuleNames,
+        FileCollection patchModulePath,
+        List<Map.Entry<String, Provider<? extends FileSystemLocation>>> modulePatches) {
+      this.modulePath = modulePath;
+      this.hasModuleDescriptor = hasModuleDescriptor;
+      this.patchModuleNames = List.copyOf(patchModuleNames);
+      this.patchModulePath = patchModulePath;
+      this.modulePatches = List.copyOf(modulePatches);
+    }
+
+    @Classpath
+    public FileCollection getModulePath() {
+      return modulePath;
+    }
+
+    @Input
+    public boolean isHasModuleDescriptor() {
+      return hasModuleDescriptor;
+    }
+
+    @Input
+    public List<String> getPatchModuleNames() {
+      return patchModuleNames;
+    }
+
+    @Classpath
+    public FileCollection getPatchModulePath() {
+      return patchModulePath;
+    }
 
     @Override
     public Iterable<String> asArguments() {
